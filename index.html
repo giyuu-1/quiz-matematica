@@ -291,6 +291,7 @@
   }
   #destaque.longo { font-size: calc(38px * var(--z)); }
   #destaque .interrog { color: var(--laranja); }
+  #destaque .lacuna { display: inline-block; min-width: 1.4em; padding: 0 .2em; border: 3px dashed currentColor; border-radius: .25em; line-height: 1.1; text-align: center; }
   #destaque .marca { color: var(--btn-texto); background: var(--laranja); border-radius: 10px; padding: 0 8px; margin: 0 2px; }
   #visual { margin-top: 10px; max-width: 100%; }
   #visual svg { max-width: 100%; height: auto; }
@@ -718,7 +719,7 @@
     var r = montarOpcoes(o.certo, o.candidatos, o.formatar, o.minimo);
     return {
       enunciado: o.enunciado || '', destaque: o.destaque || '', visual: o.visual || '',
-      opcoes: r.opcoes, certa: r.certa, explicacao: o.explicacao || '', falaExtra: o.falaExtra || ''
+      opcoes: r.opcoes, certa: r.certa, explicacao: o.explicacao || '', falaExtra: o.falaExtra || '', id: o.id || ''
     };
   }
 
@@ -728,16 +729,28 @@
     for (var i = 0; i < outras.length && ops.length < 4; i++) if (ops.indexOf(outras[i]) === -1) ops.push(outras[i]);
     return {
       enunciado: o.enunciado || '', destaque: o.destaque || '', visual: o.visual || '',
-      opcoes: embaralhar(ops), certa: o.certa, explicacao: o.explicacao || '', falaExtra: o.falaExtra || ''
+      opcoes: embaralhar(ops), certa: o.certa, explicacao: o.explicacao || '', falaExtra: o.falaExtra || '', id: o.id || ''
     };
   }
 
   var CONTA = ' = <span class="interrog">?</span>';
+  var LACUNA = '<span class="interrog lacuna">?</span>';
+  // 0 = conta normal; 1 ou 2 = falta um número no meio da conta
+  function formaConta() { return Math.random() < 0.6 ? 0 : (Math.random() < 0.5 ? 1 : 2); }
 
   // ================= Operações =================
   function genAdicao(nv) {
     var r = nv === 1 ? [10, 99] : nv === 2 ? [100, 999] : [1000, 9999];
-    var a = rand(r[0], r[1]), b = rand(r[0], r[1]), c = a + b;
+    var a = rand(r[0], r[1]), b = rand(r[0], r[1]), c = a + b, forma = formaConta();
+    if (forma) {
+      var x = forma === 1 ? a : b, y = forma === 1 ? b : a;
+      return numerica({
+        enunciado: 'Qual número está faltando?',
+        destaque: forma === 1 ? LACUNA + ' + ' + fmt(b) + ' = ' + fmt(c) : fmt(a) + ' + ' + LACUNA + ' = ' + fmt(c),
+        certo: x, minimo: 1, candidatos: [c + y, x + 10, x - 10, x + 1, x - 1, c],
+        explicacao: 'Faça a conta ao contrário: ' + fmt(c) + ' − ' + fmt(y) + ' = ' + fmt(x) + '.'
+      });
+    }
     return numerica({
       enunciado: 'Quanto é?', destaque: fmt(a) + ' + ' + fmt(b) + CONTA, certo: c,
       candidatos: [c + 10, c - 10, c + 1, c - 1, c + 100],
@@ -750,7 +763,21 @@
     if (nv === 1) { a = rand(30, 99); b = rand(10, a - 5); }
     else if (nv === 2) { a = rand(200, 999); b = rand(100, a - 10); }
     else { a = rand(2000, 9999); b = rand(1000, a - 100); }
-    var c = a - b;
+    var c = a - b, forma = formaConta();
+    if (forma === 1) {
+      return numerica({
+        enunciado: 'Qual número está faltando?', destaque: LACUNA + ' − ' + fmt(b) + ' = ' + fmt(c),
+        certo: a, minimo: 1, candidatos: [c - b, a + 10, a - 10, a + 1, a - 1, b],
+        explicacao: 'Faça a conta ao contrário: ' + fmt(c) + ' + ' + fmt(b) + ' = ' + fmt(a) + '.'
+      });
+    }
+    if (forma === 2) {
+      return numerica({
+        enunciado: 'Qual número está faltando?', destaque: fmt(a) + ' − ' + LACUNA + ' = ' + fmt(c),
+        certo: b, minimo: 1, candidatos: [a + c, b + 10, b - 10, b + 1, b - 1, c],
+        explicacao: fmt(a) + ' − ' + fmt(c) + ' = ' + fmt(b) + '.'
+      });
+    }
     return numerica({
       enunciado: 'Quanto é?', destaque: fmt(a) + ' − ' + fmt(b) + CONTA, certo: c,
       candidatos: [c + 10, c - 10, c + 1, c - 1, c + 100],
@@ -763,7 +790,16 @@
     if (nv === 1) { a = rand(2, 5); b = rand(1, 10); }
     else if (nv === 2) { a = rand(2, 10); b = rand(2, 10); }
     else { a = rand(12, 99); b = rand(2, 9); }
-    var c = a * b;
+    var c = a * b, forma = formaConta();
+    if (forma && b > 1) {
+      var falta = forma === 1 ? b : a, outro = forma === 1 ? a : b;
+      return numerica({
+        enunciado: 'Qual número está faltando?',
+        destaque: forma === 1 ? fmt(a) + ' × ' + LACUNA + ' = ' + fmt(c) : LACUNA + ' × ' + b + ' = ' + fmt(c),
+        certo: falta, minimo: 1, candidatos: [falta + 1, falta - 1, falta + 2, c - outro, outro],
+        explicacao: 'Divida para descobrir: ' + fmt(c) + ' ÷ ' + fmt(outro) + ' = ' + fmt(falta) + '.'
+      });
+    }
     return numerica({
       enunciado: 'Quanto é?', destaque: fmt(a) + ' × ' + b + CONTA, certo: c,
       candidatos: [a * (b + 1), a * (b - 1), (a + 1) * b, a + b, c + 10],
@@ -776,7 +812,21 @@
     if (nv === 1) { d = rand(2, 5); q = rand(1, 10); }
     else if (nv === 2) { d = rand(2, 10); q = rand(2, 10); }
     else { d = rand(2, 9); q = rand(11, 40); }
-    var t = d * q;
+    var t = d * q, forma = formaConta();
+    if (forma === 1) {
+      return numerica({
+        enunciado: 'Qual número está faltando?', destaque: LACUNA + ' ÷ ' + d + ' = ' + q,
+        certo: t, minimo: 1, candidatos: [t + d, t - d, q + d, t + 10, t + 1],
+        explicacao: 'Multiplique para descobrir: ' + q + ' × ' + d + ' = ' + fmt(t) + '.'
+      });
+    }
+    if (forma === 2 && q > 1) {
+      return numerica({
+        enunciado: 'Qual número está faltando?', destaque: fmt(t) + ' ÷ ' + LACUNA + ' = ' + q,
+        certo: d, minimo: 1, candidatos: [d + 1, d - 1, d + 2, q, t - q],
+        explicacao: fmt(t) + ' ÷ ' + q + ' = ' + d + ', porque ' + d + ' × ' + q + ' = ' + fmt(t) + '.'
+      });
+    }
     return numerica({
       enunciado: 'Quanto é?', destaque: fmt(t) + ' ÷ ' + d + CONTA, certo: q,
       candidatos: [q + 1, q - 1, q + 2, q + 10, d],
@@ -818,7 +868,7 @@
   }
 
   function genFracaoFigura(nv) {
-    var maxN = nv === 1 ? 4 : nv === 2 ? 8 : 12;
+    var maxN = nv === 1 ? 6 : nv === 2 ? 8 : 12;
     var n = rand(2, maxN), k = rand(1, n - 1);
     var pizza = n <= 8 && Math.random() < 0.5;
     var certa = k + '/' + n;
@@ -882,7 +932,8 @@
       certa = maior + '/' + n;
       expl = 'As partes têm o mesmo tamanho, então a maior é a que tem mais partes: ' + certa + '.';
     }
-    return { enunciado: 'Qual é a <b>maior</b> fração?', destaque: '', visual: '', opcoes: ops, certa: certa, fracao: true, explicacao: expl };
+    return { enunciado: 'Qual é a <b>maior</b> fração?', destaque: '', visual: '', opcoes: ops, certa: certa, fracao: true, explicacao: expl,
+      id: 'fmaior:' + ops.slice().sort().join(',') };
   }
 
   // ================= Problemas =================
@@ -1088,9 +1139,23 @@
     for (var j = 0; j < nums.length; j++) ops.push(fmt(nums[j]));
     return {
       enunciado: 'Qual é o <b>' + (maior ? 'maior' : 'menor') + '</b> número?', destaque: '', visual: '',
-      opcoes: ops, certa: fmt(certo),
+      opcoes: ops, certa: fmt(certo), id: 'mm:' + maior + ':' + ops.slice().sort().join(','),
       explicacao: 'Compare os algarismos da esquerda para a direita. O ' + (maior ? 'maior' : 'menor') + ' é ' + fmt(certo) + '.'
     };
+  }
+
+  function genArredondar(nv) {
+    var n, casa, alvo;
+    if (nv === 1) { do { n = rand(11, 99); } while (n % 10 === 5 || n % 10 === 0); casa = 10; alvo = 'a <b>dezena</b> mais próxima'; }
+    else if (nv === 2) { do { n = rand(101, 999); } while (n % 100 === 50 || n % 10 === 0); casa = 100; alvo = 'a <b>centena</b> mais próxima'; }
+    else { do { n = rand(1001, 9999); } while (n % 1000 === 500 || n % 100 === 0); casa = 1000; alvo = 'o <b>milhar</b> mais próximo'; }
+    var baixo = Math.floor(n / casa) * casa, cima = baixo + casa;
+    var r = (n - baixo < cima - n) ? baixo : cima;
+    return numerica({
+      enunciado: 'Arredonde para ' + alvo + ':', destaque: fmt(n),
+      certo: r, minimo: 1, candidatos: [r === baixo ? cima : baixo, r + casa, r - casa, Math.round(n / (casa / 10)) * (casa / 10)],
+      explicacao: fmt(n) + ' fica entre ' + fmt(baixo) + ' e ' + fmt(cima) + ', mais perto de ' + fmt(r) + '.'
+    });
   }
 
   // ================= Geometria =================
@@ -1128,10 +1193,17 @@
       : f.ret ? 'O retângulo tem 4 lados e 4 cantos retos, com dois lados compridos e dois curtos.'
       : f.nome === 'Quadrado' ? 'O quadrado tem 4 lados iguais e 4 cantos retos.'
       : 'Essa figura tem ' + f.n + ' lados, por isso é um ' + f.nome.toLowerCase() + '.';
+    if (Math.random() < 0.4) {
+      var desc = f.n === 0 ? 'não tem nenhum lado reto e é toda redonda'
+        : f.ret ? 'tem 4 cantos retos, com 2 lados compridos e 2 curtos'
+        : f.nome === 'Quadrado' ? 'tem 4 lados iguais e 4 cantos retos'
+        : 'tem <b>' + f.n + ' lados</b>';
+      return deTexto({ enunciado: 'Qual figura ' + desc + '?', certa: f.nome, outras: nomes, explicacao: expl, id: 'figr:' + f.nome });
+    }
     return deTexto({
       enunciado: 'Qual é o nome desta figura?',
       visual: f.ret ? svgRetangulo(cor) : svgPoligono(f.n, cor, false),
-      certa: f.nome, outras: nomes, explicacao: expl
+      certa: f.nome, outras: nomes, explicacao: expl, id: 'fig:' + f.nome
     });
   }
 
@@ -1140,7 +1212,7 @@
     var n = pick(lista), vert = Math.random() < 0.5;
     return numerica({
       enunciado: vert ? 'Quantos <b>vértices</b> (cantinhos) tem esta figura?' : 'Quantos <b>lados</b> tem esta figura?',
-      visual: svgPoligono(n, pick(CORES_FIG), vert),
+      visual: svgPoligono(n, pick(CORES_FIG), vert), id: 'lados:' + n + ':' + vert,
       certo: n, minimo: 3, candidatos: [n - 1, n + 1, n + 2, n - 2],
       explicacao: vert ? 'Conte as bolinhas: são ' + n + ' vértices.' : 'Conte cada lado da figura: são ' + n + ' lados. Ela também tem ' + n + ' vértices.'
     });
@@ -1342,6 +1414,29 @@
     });
   }
 
+  function genDuracao(nv) {
+    if (nv === 1) {
+      var h1 = rand(1, 9), d = rand(1, 4), h2 = h1 + d;
+      return numerica({
+        enunciado: 'Uma aula começou às <b>' + h1 + ':00</b> e terminou às <b>' + h2 + ':00</b>. Quantas horas durou?',
+        certo: d, minimo: 1, candidatos: [d + 1, d - 1, d + 2, h2],
+        formatar: function (v) { return v + (v === 1 ? ' hora' : ' horas'); },
+        explicacao: 'De ' + h1 + ' até ' + h2 + ' horas passaram ' + d + (d === 1 ? ' hora.' : ' horas.')
+      });
+    }
+    var ini = rand(7, 15) * 60 + (nv === 2 ? pick([0, 30]) : rand(0, 11) * 5);
+    var dur = nv === 2 ? pick([30, 60, 90, 120, 150]) : rand(4, 22) * 5;
+    var fimMin = ini + dur;
+    var horasEMin = dur >= 60 ? ' (' + Math.floor(dur / 60) + 'h' + (dur % 60 ? ' e ' + (dur % 60) + ' min' : '') + ')' : '';
+    return numerica({
+      enunciado: pick(['Um filme', 'Um passeio', 'Um treino', 'Uma aula de música']) + ' começou às <b>' +
+        fmtHora(Math.floor(ini / 60), ini % 60) + '</b> e terminou às <b>' + fmtHora(Math.floor(fimMin / 60), fimMin % 60) + '</b>. Quantos minutos durou?',
+      certo: dur, minimo: 5, candidatos: [dur + 10, dur - 10, dur + 60, dur - 5, dur + 5, dur + 30],
+      formatar: function (v) { return v + ' min'; },
+      explicacao: 'Do começo até o fim passaram ' + dur + ' minutos' + horasEMin + '.'
+    });
+  }
+
   // ================= Temas =================
   var TEMAS = [
     { id: 'adicao', nome: 'Adição', ic: '➕', cor: '#22c55e', claro: '#dcfce7' },
@@ -1359,9 +1454,9 @@
     adicao: [genAdicao], subtracao: [genSubtracao], multiplicacao: [genMultiplicacao], divisao: [genDivisao],
     fracoes: [genFracaoFigura, genFracaoFigura, genFracaoQuantidade, genFracaoMaior],
     problemas: PROBLEMAS,
-    numeros: [genValorPosicional, genDecomposicao, genSucessor, genMaiorMenor],
+    numeros: [genValorPosicional, genDecomposicao, genSucessor, genMaiorMenor, genArredondar],
     geometria: [genNomeFigura, genLadosVertices, genPerimetro, genArea],
-    medidas: [genRelogio, genRelogio, genConversao, genUnidade]
+    medidas: [genRelogio, genRelogio, genConversao, genUnidade, genDuracao]
   };
   var NIVEIS = [null, { nome: 'Fácil', ic: '🙂' }, { nome: 'Médio', ic: '😎' }, { nome: 'Difícil', ic: '🔥' }];
   var QUANTIDADES = [5, 10, 15, 20];
@@ -1379,13 +1474,39 @@
     return q;
   }
 
-  function chaveDe(q) { return q.enunciado + '|' + q.destaque + '|' + q.visual + '|' + q.certa; }
+  // Resumo curto de uma pergunta, para saber se ela já apareceu
+  function resumo(s) {
+    var h = 5381;
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function chaveDe(q) { return resumo(q.id || (q.enunciado + '|' + q.destaque + '|' + q.visual + '|' + q.certa)); }
 
+  // Evita repetir na rodada e também o que o aluno já viu nas últimas rodadas.
+  // Se o assunto não tiver mais perguntas inéditas, aceita uma já vista (mas nunca repete na mesma rodada).
   function perguntaNova(chaves) {
-    var q, tent = 0;
-    do { q = gerarPergunta(estado.tema, estado.nivel); tent++; } while (chaves.indexOf(chaveDe(q)) !== -1 && tent < 30);
-    chaves.push(chaveDe(q));
+    var q, c, tent = 0;
+    do { q = gerarPergunta(estado.tema, estado.nivel); c = chaveDe(q); tent++; }
+    while ((chaves.indexOf(c) !== -1 || estado.vistas.indexOf(c) !== -1) && tent < 80);
+    tent = 0;
+    while (chaves.indexOf(c) !== -1 && tent < 40) { q = gerarPergunta(estado.tema, estado.nivel); c = chaveDe(q); tent++; }
+    q.chave = c;
+    chaves.push(c);
     return q;
+  }
+
+  var CHAVE_VISTAS = 'quizMat4_v2_vistas', LIMITE_VISTAS = 1500;
+  function carregarVistas() {
+    var reg = ler(CHAVE_VISTAS, {});
+    estado.vistas = reg[chaveNome(estado.nome)] || [];
+  }
+  function marcarVista(q) {
+    if (!q || !q.chave || estado.vistas.indexOf(q.chave) !== -1) return;
+    estado.vistas.push(q.chave);
+    if (estado.vistas.length > LIMITE_VISTAS) estado.vistas.splice(0, estado.vistas.length - LIMITE_VISTAS);
+    var reg = ler(CHAVE_VISTAS, {});
+    reg[chaveNome(estado.nome)] = estado.vistas;
+    gravar(CHAVE_VISTAS, reg);
   }
 
   // ================= Mascote =================
@@ -1467,37 +1588,72 @@
 
   // ================= Leitura em voz alta =================
   var vozOk = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined';
+  var falaId = 0, falando = false;
+
+  function atualizarBotaoOuvir() {
+    $('btn-ouvir').innerHTML = falando ? '⏹️ Parar' : '🔈 Ouvir';
+  }
+  function vozPortugues() {
+    var vozes = window.speechSynthesis.getVoices() || [], achada = null;
+    for (var i = 0; i < vozes.length; i++) {
+      var lang = (vozes[i].lang || '').replace('_', '-');
+      if (lang === 'pt-BR') return vozes[i];
+      if (!achada && lang.indexOf('pt') === 0) achada = vozes[i];
+    }
+    return achada;
+  }
+  // Fala em pedaços (frase por frase): textos longos de uma vez só às vezes travam no Chrome
   function falarTexto(t) {
-    if (!vozOk || !t) return;
+    if (!vozOk || !t || !somLigado) return;
     try {
       window.speechSynthesis.cancel();
-      var u = new window.SpeechSynthesisUtterance(t);
-      u.lang = 'pt-BR';
-      u.rate = 0.92;
-      var vozes = window.speechSynthesis.getVoices() || [];
-      for (var i = 0; i < vozes.length; i++) {
-        if (vozes[i].lang && vozes[i].lang.replace('_', '-').indexOf('pt') === 0) {
-          u.voice = vozes[i];
-          if (vozes[i].lang.replace('_', '-') === 'pt-BR') break;
+      var id = ++falaId, voz = vozPortugues();
+      var partes = String(t).split(/(?:[.!?:]\s+)/);
+      var lista = [];
+      for (var i = 0; i < partes.length; i++) if (partes[i].replace(/\s+/g, '')) lista.push(partes[i]);
+      if (!lista.length) return;
+      falando = true;
+      atualizarBotaoOuvir();
+      for (var j = 0; j < lista.length; j++) {
+        var u = new window.SpeechSynthesisUtterance(lista[j]);
+        u.lang = 'pt-BR';
+        u.rate = 0.92;
+        if (voz) u.voice = voz;
+        if (j === lista.length - 1) {
+          u.onend = u.onerror = function () {
+            if (id === falaId) { falando = false; atualizarBotaoOuvir(); }
+          };
         }
+        window.speechSynthesis.speak(u);
       }
-      window.speechSynthesis.speak(u);
-    } catch (e) { /* sem voz */ }
+    } catch (e) { falando = false; atualizarBotaoOuvir(); }
   }
-  function calarVoz() { try { if (vozOk) window.speechSynthesis.cancel(); } catch (e) { /* ok */ } }
+  function calarVoz() {
+    falaId++;
+    falando = false;
+    atualizarBotaoOuvir();
+    try { if (vozOk) window.speechSynthesis.cancel(); } catch (e) { /* ok */ }
+  }
+  function alternarOuvir() {
+    if (falando) calarVoz();
+    else lerPergunta();
+  }
 
   // Transforma o texto da tela em algo que a voz lê bem ("3/4" vira "3 quartos", "×" vira "vezes"...)
   function paraFala(html) {
     var s = String(html).replace(/<span class="frac"><span>(\d+)<\/span><span>(\d+)<\/span><\/span>/g, function (_, a, b) {
       return ' ' + nomeFracao(parseInt(a, 10), parseInt(b, 10)) + ' ';
     });
+    s = s.replace(/=\s*<span class="interrog">\?<\/span>/g, '?')
+      .replace(/<span class="interrog lacuna">\?<\/span>/g, ' quanto ');
     s = textoPuro(s);
     s = s.replace(/(\d+):(\d\d)/g, function (_, h, m) {
       return h + (m === '00' ? ' horas em ponto' : ' horas e ' + parseInt(m, 10) + ' minutos');
     });
     return s.replace(/cm²/g, ' centímetros quadrados').replace(/(\d) cm/g, '$1 centímetros')
+      .replace(/(\d) min\b/g, '$1 minutos').replace(/(\d)h\b/g, '$1 horas')
       .replace(/×/g, ' vezes ').replace(/÷/g, ' dividido por ').replace(/−/g, ' menos ').replace(/\+/g, ' mais ')
-      .replace(/=\s*\?/g, '?').replace(/\s+\?/g, '?').replace(/\s+/g, ' ');
+      .replace(/=/g, ' é igual a ').replace(/\s+\?/g, '?').replace(/\s+/g, ' ');
   }
   function lerPergunta() {
     var q = estado.perguntas[estado.atual];
@@ -1593,7 +1749,7 @@
   // ================= Estado e telas =================
   var estado = {
     nome: '', avatar: AVATARES[0], modo: 'classico', tema: 'adicao', nivel: 1, total: 10,
-    perguntas: [], chaves: [], atual: 0, acertos: 0, pontos: 0, combo: 0, maxCombo: 0, erros: [],
+    perguntas: [], chaves: [], vistas: [], atual: 0, acertos: 0, pontos: 0, combo: 0, maxCombo: 0, erros: [],
     respondida: false, ajudas: 2, usouAjuda: false, ajudaNestaPergunta: false,
     tempoFim: 0, duracao: 60000, timer: null, autoProxima: null, ultimoSegundo: 0, jogando: false,
     conforto: false, letraEnorme: false, leituraAuto: false
@@ -1767,6 +1923,7 @@
     estado.atual = 0; estado.acertos = 0; estado.pontos = 0; estado.combo = 0; estado.maxCombo = 0;
     estado.erros = []; estado.ajudas = 2; estado.usouAjuda = false; estado.chaves = []; estado.perguntas = [];
     estado.jogando = true;
+    carregarVistas();
     if (!relampago()) for (var i = 0; i < estado.total; i++) estado.perguntas.push(perguntaNova(estado.chaves));
 
     var t = temaPorId(estado.tema);
@@ -1818,6 +1975,7 @@
     var q = estado.perguntas[estado.atual];
     estado.respondida = false;
     estado.ajudaNestaPergunta = false;
+    marcarVista(q);
     atualizarTopo();
     if (relampago()) {
       $('contador').innerHTML = 'Pergunta <b>' + (estado.atual + 1) + '</b> · ✅ ' + estado.acertos + (estado.acertos === 1 ? ' acerto' : ' acertos');
@@ -2134,7 +2292,7 @@
     if (b) responder(parseInt(b.getAttribute('data-i'), 10));
   };
   $('btn-ajuda').onclick = usarAjuda;
-  $('btn-ouvir').onclick = lerPergunta;
+  $('btn-ouvir').onclick = alternarOuvir;
   $('btn-proxima').onclick = proxima;
   $('btn-sair').onclick = function () {
     perguntar('Quer mesmo sair? As respostas desta rodada serão perdidas.', function () {
@@ -2162,7 +2320,9 @@
   };
   $('btn-som').onclick = function () {
     somLigado = !somLigado;
+    if (!somLigado) calarVoz();
     this.innerHTML = somLigado ? '🔊' : '🔇';
+    this.title = somLigado ? 'Desligar som e voz' : 'Ligar som e voz';
   };
   $('btn-tela-cheia').onclick = function () {
     try {
@@ -2184,7 +2344,7 @@
     if (!$('modal').hidden) { if (ev.keyCode === 27) fecharModal(); return; }
     if ($('tela-quiz').className.indexOf('ativa') === -1) return;
     var k = ev.keyCode;
-    if (k === 79) { lerPergunta(); return; }                // O = ouvir
+    if (k === 79) { alternarOuvir(); return; }              // O = ouvir / parar
     if (!estado.respondida) {
       if (k >= 49 && k <= 52) responder(k - 49);           // 1-4
       else if (k >= 97 && k <= 100) responder(k - 97);     // teclado numérico 1-4
@@ -2199,6 +2359,7 @@
   // gancho para conferir o gerador de perguntas pelo console
   window.__quizTeste = function (tema, nv) { return gerarPergunta(tema, nv); };
   window.__quizFala = paraFala;
+  window.__quizChave = chaveDe;
 
   $('nome').focus();
 })();
